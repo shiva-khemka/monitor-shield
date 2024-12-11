@@ -1,0 +1,19 @@
+mongoose.connect("").then(()=> console.log("connected")).catch((err)=>console.log("",err))
+cont schema=new mongoose.Schema({})
+const user=mongoose.model("user",schema);
+
+const result=await User.create({
+    name=body.name,
+});
+get("/users",async(req,res)=>{const all=await user.find({});
+const html=<ul>
+${all.map((user)=> '<li>${user.name} - ${user.email} <li>').join("")}<ul>
+})
+findbyid
+findbyidandupdate
+
+
+const monitoringData = await this.collectData();
+const verificationCookie = this.getCookie('monitor_verification');
+link client collectt data
+fingerprint

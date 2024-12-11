@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Passive Monitoring Interface</title>
+    <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+    <style>
+        #testInterface {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .metric-group {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+        }
+        .test-area {
+            width: 100%;
+            height: 200px;
+            border: 1px solid #ccc;
+            margin: 20px 0;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="testInterface">
+        <h2>Enhanced Monitoring Interface</h2>
+        <div id="sessionInfo" class="metric-group"></div>
+        <div id="timeSpent" class="metric-group"></div>
+        <div id="deviceInfo" class="metric-group"></div>
+        <div id="ipInfo" class="metric-group"></div>
+        <div id="requestMetrics" class="metric-group"></div>
+        <div id="behaviorMetrics" class="metric-group"></div>
+        <button onclick="downloadData()">Download Collected Data</button>
+    </div>
+
+    <div class="test-area"  contenteditable="true">
+        <h3>Interaction Test Area</h3>
+        <p>Move your mouse/finger here to generate interaction data</p>
+    </div>
+
+    <script>
+        // Generate a session ID
+        const generateSessionId = () => {
+            return 'sess_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+        };
+
+        const sessionId = generateSessionId();
+        const startTime = Date.now();
+        const requestData = [];
+        
+        // Enhanced monitoring data object
+        let monitoringData = {
+            timestamp: new Date().toISOString(),
+            fingerprint: null,
+            session_id: sessionId,
+            user: {
+                ip: null,
+                session_id: sessionId,
+                user_agent: navigator.userAgent,
+                auth_token: null // Will be set when available
+            },
+            ipData: null,
+            timeSpent: 0,
+            requestMetrics: {
+                endpoints: {},
+                totalRequests: 0,
+                averageResponseTime: 0
+            },
+            request: {
+                method: null,
+                url: null,
+                headers: {},
+                body: null
+            },
+            response: {
+                status_code: null,
+                response_time_ms: null
+            },
+            interactions: {
+                mouseMovements: [],
+                scrolls: [],
+                clicks: [],
+                keypresses: [],
+                touches: [],
+                swipes: [],
+                rotations: [],
+            },
+            features: null
+        };
+
+        // Enhanced fetch override
+        const originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const startTime = Date.now();
+            const requestHeaders = options.headers || {};
+            
+            // Capture request details
+            monitoringData.request = {
+                method: options.method || 'GET',
+                url: url,
+                headers: {
+                    'User-Agent': navigator.userAgent,
+                    'Referer': document.referrer,
+                    'Accept-Language': navigator.language,
+                    'Content-Type': requestHeaders['Content-Type'] || 'application/json',
+                    'Origin': window.location.origin,
+                    ...requestHeaders
+                },
+                body: options.body ? JSON.parse(options.body) : null
+            };
+
+            try {
+                const response = await originalFetch(url, options);
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
+                // Capture response details
+                monitoringData.response = {
+                    status_code: response.status,
+                    response_time_ms: duration
+                };
+
+                // Update timestamp
+                monitoringData.timestamp = new Date().toISOString();
+                
+                const requestInfo = {
+                    url,
+                    method: options.method || 'GET',
+                    timestamp: startTime,
+                    duration,
+                    headers: requestHeaders,
+                    status: response.status
+                };
+                
+                requestData.push(requestInfo);
+                updateRequestMetrics();
+                
+                return response;
+            } catch (error) {
+                console.error('Request error:', error);
+                throw error;
+            }
+        };
+
+        // Add this before initializing monitoring
+const deviceInfo = {
+    screenWidth: window.screen.width,
+    screenHeight: window.screen.height,
+    colorDepth: window.screen.colorDepth,
+    pixelRatio: window.devicePixelRatio,
+    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+    isTouch: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+    platform: navigator.platform,
+    cores: navigator.hardwareConcurrency,
+    memory: navigator.deviceMemory,
+    connection: navigator.connection ? {
+        type: navigator.connection.effectiveType,
+        downlink: navigator.connection.downlink,
+        rtt: navigator.connection.rtt,
+    } : null,
+    battery: null,
+    languages: navigator.languages,
+    doNotTrack: navigator.doNotTrack,
+    cookiesEnabled: navigator.cookieEnabled,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    browser: {
+        name: navigator.userAgent.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i)[1],
+        version: navigator.userAgent.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i)[2]
+    }
+};
+
+// Get battery info if available
+if (navigator.getBattery) {
+    navigator.getBattery().then(battery => {
+        deviceInfo.battery = {
+            level: battery.level,
+            charging: battery.charging
+        };
+    });
+}
+
+        // Update display to include session info
+        const updateDisplay = () => {
+            monitoringData.timeSpent = Math.floor((Date.now() - startTime) / 1000);
+            monitoringData.features = computeFeatures();
+            monitoringData.timestamp = new Date().toISOString();
+            
+            document.getElementById('sessionInfo').innerHTML = `
+                <h3>Session Info</h3>
+                <p>Session ID: ${monitoringData.session_id}</p>
+                <p>User Agent: ${monitoringData.user.user_agent}</p>
+            `;
+
+            document.getElementById('timeSpent').innerHTML = `
+                <h3>Time Spent</h3>
+                <p>${Math.floor(monitoringData.timeSpent / 60)} minutes ${monitoringData.timeSpent % 60} seconds</p>
+            `;
+
+            document.getElementById('deviceInfo').innerHTML = `
+                <h3>Device Info</h3>
+                <pre>${JSON.stringify(deviceInfo, null, 2)}</pre>
+            `;
+
+            document.getElementById('ipInfo').innerHTML = `
+                <h3>IP Data</h3>
+                <pre>${JSON.stringify(monitoringData.ipData, null, 2)}</pre>
+            `;
+
+            document.getElementById('requestMetrics').innerHTML = `
+                <h3>Request Metrics</h3>
+                <pre>${JSON.stringify(monitoringData.requestMetrics, null, 2)}</pre>
+            `;
+
+            document.getElementById('behaviorMetrics').innerHTML = `
+                <h3>Behavior Metrics</h3>
+                <pre>${JSON.stringify(monitoringData.features, null, 2)}</pre>
+            `;
+        };
+
+        // Modified initialize monitoring
+        const initializeMonitoring = async () => {
+            monitoringData.fingerprint = await getFingerprint();
+            monitoringData.ipData = await getIpData();
+            
+            // Set IP in user object once received
+            if (monitoringData.ipData && monitoringData.ipData.ip) {
+                monitoringData.user.ip = monitoringData.ipData.ip;
+            }
+            
+            updateDisplay();
+
+            setInterval(() => {
+                const clientData = {
+                    ...monitoringData,
+                    timestamp: new Date().toISOString()
+                };
+
+                fetch('http://localhost:5000/monitor', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Session-ID': sessionId
+                    },
+                    body: JSON.stringify(clientData)
+                }).catch(err => console.error('Error sending monitoring data:', err));
+                
+                updateDisplay();
+            }, 10000);
+        };
+
+        // Rest of the existing code remains the same
+        // ... (keep all the existing event listeners and feature computation functions)
+
+        initializeMonitoring();
+    
+
+
+   
+           
+
+        const updateRequestMetrics = () => {
+            const metrics = monitoringData.requestMetrics;
+            metrics.totalRequests = requestData.length;
+            
+            // Calculate average response time
+            const totalDuration = requestData.reduce((sum, req) => sum + req.duration, 0);
+            metrics.averageResponseTime = totalDuration / requestData.length;
+            
+            // Track endpoints
+            requestData.forEach(req => {
+                const url = new URL(req.url);
+                const endpoint = url.pathname;
+                if (!metrics.endpoints[endpoint]) {
+                    metrics.endpoints[endpoint] = {
+                        count: 0,
+                        averageTime: 0
+                    };
+                }
+                metrics.endpoints[endpoint].count++;
+                metrics.endpoints[endpoint].averageTime = 
+                    (metrics.endpoints[endpoint].averageTime * (metrics.endpoints[endpoint].count - 1) + 
+                    req.duration) / metrics.endpoints[endpoint].count;
+            });
+        };
+
+        const getIpData = async () => {
+            try {
+                const response = await fetch('https://api.ipify.org?format=json');
+                const { ip } = await response.json();
+                
+                const geoResponse = await fetch(`https://geo.ipify.org/api/v2/country,city?apiKey=at_dmwBpC7iL8FGGaT5c6O1y6sAXaCgJ&ipAddress`);
+                const geoData = await geoResponse.json();
+                
+                return {
+                    ip,
+                    location: {
+                        country: geoData.location.country,
+                        region: geoData.location.region,
+                        city: geoData.location.city,
+                        lat: geoData.location.lat,
+                        lng: geoData.location.lng,
+                        postalCode: geoData.location.postalCode,
+                        timezone: geoData.location.timezone,
+                        geonameId: geoData.location.geonameId
+                    },
+                    as: geoData.as,
+                    isp: geoData.isp,
+                    proxy: geoData.proxy
+                };
+            } catch (error) {
+                console.error('IP data error:', error);
+                return null;
+            }
+        };
+
+        
+        const getFingerprint = async () => {
+            try {
+                const fp = await FingerprintJS.load();
+                return (await fp.get()).visitorId;
+            } catch (error) {
+                console.error('Fingerprint error:', error);
+                return null;
+            }
+        };
+
+       /* const getIpData = async () => {
+            try {
+                
+                const geoResponse = await fetch(`https://geo.ipify.org/api/v2/country,city?apiKey=at_dmwBpC7iL8FGGaT5c6O1y6sAXaCgJ&ipAddress=8.8.8.8`);
+                const geoData = await geoResponse.json();
+                
+                return {
+                    ip,
+                    location: {
+                        country: geoData.country_code,
+                        region: geoData.region_name,
+                        city: geoData.city,
+                        lat: geoData.latitude,
+                        lng: geoData.longitude,
+                        postalCode: geoData.zip,
+                        timezone: geoData.time_zone?.current_time,
+                        geonameId: geoData.location?.geoname_id
+                    },
+                    as: {
+                        asn: geoData.asn,
+                        name: geoData.connection?.isp_name,
+                        route: geoData.connection?.route,
+                        domain: geoData.connection?.domain,
+                        type: geoData.connection?.type
+                    },
+                    isp: geoData.connection?.isp,
+                    proxy: {
+                        proxy: geoData.security?.proxy,
+                        vpn: geoData.security?.vpn,
+                        tor: geoData.security?.tor
+                    }
+                };
+            } catch (error) {
+                console.error('IP data error:', error);
+                return null;
+            }
+        };*/
+
+        // Event Listeners
+        if (deviceInfo.isTouch) {
+            document.addEventListener('touchstart', (e) => {
+                monitoringData.interactions.touches.push({
+                    touches: e.touches.length,
+                    timestamp: Date.now()
+                });
+                updateDisplay();
+            });
+
+            document.addEventListener('touchmove', (e) => {
+                monitoringData.interactions.swipes.push({
+                    touches: e.touches.length,
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY,
+                    timestamp: Date.now()
+                });
+                updateDisplay();
+            });
+
+            window.addEventListener('orientationchange', () => {
+                monitoringData.interactions.rotations.push({
+                    orientation: screen.orientation?.type || window.orientation,
+                    timestamp: Date.now()
+                });
+                updateDisplay();
+            });
+        } else {
+            document.addEventListener('mousemove', (e) => {
+                monitoringData.interactions.mouseMovements.push({
+                    x: e.clientX,
+                    y: e.clientY,
+                    timestamp: Date.now()
+                });
+                if (monitoringData.interactions.mouseMovements.length > 100) {
+                    monitoringData.interactions.mouseMovements.shift();
+                }
+                updateDisplay();
+            });
+
+            document.addEventListener('click', (e) => {
+                monitoringData.interactions.clicks.push({
+                    x: e.clientX,
+                    y: e.clientY,
+                    timestamp: Date.now()
+                });
+                updateDisplay();
+            });
+        }
+
+        document.addEventListener('scroll', () => {
+            monitoringData.interactions.scrolls.push({
+                scrollY: window.scrollY,
+                timestamp: Date.now()
+            });
+            if (monitoringData.interactions.scrolls.length > 100) {
+                monitoringData.interactions.scrolls.shift();
+            }
+            updateDisplay();
+        });
+
+        document.addEventListener('keypress', (e) => {
+            monitoringData.interactions.keypresses.push({
+                timestamp: Date.now()
+            });
+            updateDisplay();
+        });
+
+        // Feature Computation
+        const computeFeatures = () => {
+            const now = Date.now();
+            const features = {
+                deviceType: deviceInfo.isMobile ? 'mobile' : 'desktop',
+                touchCapable: deviceInfo.isTouch,
+            };
+
+            if (deviceInfo.isTouch) {
+                const recentTouches = monitoringData.interactions.touches.filter(t => now - t.timestamp < 60000);
+                const recentSwipes = monitoringData.interactions.swipes.filter(s => now - s.timestamp < 60000);
+
+                features.touchMetrics = {
+                    touchRate: recentTouches.length / 60,
+                    multiTouchRatio: recentTouches.filter(t => t.touches > 1).length / recentTouches.length || 0,
+                    swipeSpeed: calculateSwipeSpeed(recentSwipes),
+                    swipePatterns: analyzeSwipePatterns(recentSwipes),
+                    rotationFrequency: monitoringData.interactions.rotations.length / 60
+                };
+            } else {
+                const recentMoves = monitoringData.interactions.mouseMovements.filter(m => now - m.timestamp < 60000);
+                features.mouseMetrics = {
+                    clickRate: monitoringData.interactions.clicks.length / 60,
+                    typeRate: monitoringData.interactions.keypresses.length / 60,
+                    mouseSpeed: calculateMouseSpeed(recentMoves),
+                    movementPattern: analyzeMovementPattern(recentMoves)
+                };
+            }
+
+            features.scrollMetrics = analyzeScrollPattern(monitoringData.interactions.scrolls);
+            return features;
+        };
+
+        const calculateSwipeSpeed = (swipes) => {
+            if (swipes.length < 2) return 0;
+            let totalSpeed = 0;
+            for (let i = 1; i < swipes.length; i++) {
+                const dx = swipes[i].x - swipes[i-1].x;
+                const dy = swipes[i].y - swipes[i-1].y;
+                const dt = swipes[i].timestamp - swipes[i-1].timestamp;
+                totalSpeed += Math.sqrt(dx*dx + dy*dy) / dt;
+            }
+            return totalSpeed / (swipes.length - 1);
+        };
+
+        const calculateMouseSpeed = (moves) => {
+            if (moves.length < 2) return 0;
+            let totalSpeed = 0;
+            for (let i = 1; i < moves.length; i++) {
+                const dx = moves[i].x - moves[i-1].x;
+                const dy = moves[i].y - moves[i-1].y;
+                const dt = moves[i].timestamp - moves[i-1].timestamp;
+                totalSpeed += Math.sqrt(dx*dx + dy*dy) / dt;
+            }
+            return totalSpeed / (moves.length - 1);
+        };
+
+        const analyzeSwipePatterns = (swipes) => {
+            if (swipes.length < 2) return 'insufficient_data';
+            const patterns = {
+                vertical: 0,
+                horizontal: 0,
+                diagonal: 0
+            };
+
+            for (let i = 1; i < swipes.length; i++) {
+                const dx = Math.abs(swipes[i].x - swipes[i-1].x);
+                const dy = Math.abs(swipes[i].y - swipes[i-1].y);
+                
+                if (dx > dy * 2) patterns.horizontal++;
+                else if (dy > dx * 2) patterns.vertical++;
+                else patterns.diagonal++;
+            }
+
+            return patterns;
+        };
+
+        const analyzeScrollPattern = (scrolls) => {
+            if (scrolls.length < 2) return 'insufficient_data';
+            const intervals = [];
+            for (let i = 1; i < scrolls.length; i++) {
+                intervals.push(scrolls[i].timestamp - scrolls[i-1].timestamp);
+            }
+            return {
+                averageInterval: intervals.reduce((a, b) => a + b, 0) / intervals.length,
+                regularityScore: calculateRegularity(intervals)
+            };
+        };
+
+        const analyzeMovementPattern = (moves) => {
+            if (moves.length < 2) return 'insufficient_data';
+            const angles = moves.slice(1).map((move, i) => {
+                const dx = move.x - moves[i].x;
+                const dy = move.y - moves[i].y;
+                return Math.atan2(dy, dx);
+            });
+
+            return {
+                linearMovement: calculateLinearityScore(angles),
+                averageSpeed: calculateMouseSpeed(moves)
+            };
+        };
+
+        const calculateRegularity = (intervals) => {
+            const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+            const variance = intervals.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / intervals.length;
+            return 1 / (1 + Math.sqrt(variance));
+        };
+
+        const calculateLinearityScore = (angles) => {
+            let consistentAngleCount = 0;
+            for (let i = 1; i < angles.length; i++) {
+                if (Math.abs(angles[i] - angles[i-1]) < 0.1) consistentAngleCount++;
+            }
+            return consistentAngleCount / (angles.length - 1);
+        };
+
+        // Display and Testing Functions
+        /*const updateDisplay = () => {
+            monitoringData.features = computeFeatures();
+            
+            document.getElementById('deviceInfo').innerHTML = `
+                <h3>Device Info</h3>
+                <pre>${JSON.stringify(deviceInfo, null, 2)}</pre>
+            `;
+
+            document.getElementById('ipInfo').innerHTML = `
+                <h3>IP Data</h3>
+                <pre>${JSON.stringify(monitoringData.ipData, null, 2)}</pre>
+            `;
+
+            document.getElementById('behaviorMetrics').innerHTML = `
+                <h3>Behavior Metrics</h3>
+                <pre>${JSON.stringify(monitoringData.features, null, 2)}</pre>
+            `;
+        };*/
+
+        const downloadData = () => {
+            const dataStr = JSON.stringify(monitoringData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = window.URL.createObjectURL(dataBlob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'monitoring-data.json';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+        };
+
+        // Initialize monitoring
+        /*const initializeMonitoring = async () => {
+            monitoringData.fingerprint = await getFingerprint();
+            monitoringData.ipData = await getIpData();
+            updateDisplay();
+
+            setInterval(() => {
+                const clientData = {
+                    ...monitoringData,
+                    timestamp: Date.now()
+                };
+
+                fetch('http://localhost:5000/monitor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(clientData)
+                }).catch(err => console.error('Error sending monitoring data:', err));
+                
+                updateDisplay();
+            }, 10000);
+        };*/
+
+        initializeMonitoring();
+    </script>
+</body>
+</html>

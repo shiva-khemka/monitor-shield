@@ -1,0 +1,6 @@
+export const determineInteractionLevel = (trustScore) => {
+    if (trustScore >= 80) return 'accessible';
+    if (trustScore >= 60) return 'simple';
+    if (trustScore >= 40) return 'complex';
+    return 'restricted';
+};
