@@ -1,3 +1,4 @@
+//.client/src/eventListeners.js
 export const setupEventListeners = (monitoringData, deviceInfo) => {
 if (deviceInfo.isTouch) {
     document.addEventListener('touchstart', (e) => {

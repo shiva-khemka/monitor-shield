@@ -1,3 +1,4 @@
+ //.client/src/deviceinfo.js
  export const deviceInfo = {
     screenWidth: window.screen.width,
     screenHeight: window.screen.height,

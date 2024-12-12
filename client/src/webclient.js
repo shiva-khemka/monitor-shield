@@ -1,3 +1,4 @@
+//.client/src/webclient.js
 import { Encryption } from './utils/encryption';
 import {collectData} from '.collectData';
 //import { generateFingerprint } from './utils/fingerprint';

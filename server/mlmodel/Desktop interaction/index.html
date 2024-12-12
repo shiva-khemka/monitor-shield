@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced User Interaction Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            background-color: #f4f4f4;
+        }
+
+        #main-image {
+            width: 400px;
+            height: 400px;
+            background-color: white;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #3498db;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        #main-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        #draggable-object {
+            position: absolute;
+            cursor: grab;
+            width: 200px;
+            height: 200px;
+            transform: rotate(120deg);
+            z-index: 1;
+        }
+
+        #draggable-object img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        #draggable-object.dragging {
+            cursor: grabbing;
+            opacity: 0.7;
+        }
+
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 2;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        #popup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #3498db;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            z-index: 3;
+        }
+    </style>
+</head>
+<body>
+    <div id="main-image">
+        <img id="center-image" src="center.jpeg" alt="Drop Target">
+    </div>
+    
+    <div id="draggable-object">
+        <img src="object.png" alt="Draggable Object">
+    </div>
+
+    <div id="controls">
+        <button id="rotate-button">Rotate</button>
+        <button id="submit-button">Submit</button>
+    </div>
+
+    <div id="popup">Human Verified!</div>
+
+    <script>
+        // Get references to elements
+        const draggableObject = document.getElementById('draggable-object');
+        const mainImage = document.getElementById('main-image');
+        const rotateButton = document.getElementById('rotate-button');
+        const submitButton = document.getElementById('submit-button');
+        const popup = document.getElementById('popup');
+
+        // Function to get random position within main image
+        function getRandomPosition() {
+            const mainRect = mainImage.getBoundingClientRect();
+            const objectWidth = draggableObject.offsetWidth;
+            const objectHeight = draggableObject.offsetHeight;
+
+            // Calculate maximum possible x and y positions
+            const maxX = mainRect.width - objectWidth;
+            const maxY = mainRect.height - objectHeight;
+
+            // Generate random positions
+            const randomX = Math.floor(Math.random() * maxX);
+            const randomY = Math.floor(Math.random() * maxY);
+
+            return { x: randomX, y: randomY };
+        }
+
+        // Set random initial position on page load
+        function initializeObjectPosition() {
+            const { x, y } = getRandomPosition();
+            draggableObject.style.left = `${x}px`;
+            draggableObject.style.top = `${y}px`;
+        }
+
+        // Initialize variables
+        let rotation = 120; // Current rotation in degrees
+        let isDragging = false;
+        let offsetX = 0, offsetY = 0;
+
+        // Enhanced activity logging
+        let activityLog = [];
+        let sessionStartTime = Date.now();
+
+        // Function to log activity with additional metadata
+        function logActivity(type, details = {}) {
+            const logEntry = {
+                type,
+                timestamp: Date.now(),
+                timeSinceStart: Date.now() - sessionStartTime,
+                ...details
+            };
+            activityLog.push(logEntry);
+        }
+
+        // Event tracking // Event tracking for mouse movements
+document.addEventListener('mousemove', (event) => {
+    logActivity('mousemove', { 
+        x: event.clientX, 
+        y: event.clientY,
+        targetElement: event.target.id || event.target.tagName
+    });
+
+    if (isDragging) {
+        draggableObject.style.left = `${event.clientX - offsetX}px`;
+        draggableObject.style.top = `${event.clientY - offsetY}px`;
+    }
+});
+
+// Rotate the object with enhanced logging
+rotateButton.addEventListener('click', () => {
+    rotation = (rotation + 60) % 360;
+    draggableObject.style.transform = `rotate(${rotation}deg)`;
+    
+    logActivity('rotate', { 
+        angle: rotation,
+        previousAngle: rotation - 60
+    });
+});
+
+// Drag and drop functionality
+draggableObject.addEventListener('mousedown', (event) => {
+    isDragging = true;
+    offsetX = event.clientX - draggableObject.offsetLeft;
+    offsetY = event.clientY - draggableObject.offsetTop;
+    draggableObject.classList.add('dragging');
+    
+    logActivity('dragStart', {
+        initialX: draggableObject.offsetLeft,
+        initialY: draggableObject.offsetTop
+    });
+});
+
+document.addEventListener('mouseup', () => {
+    if (isDragging) {
+        logActivity('dragEnd', {
+            finalX: draggableObject.offsetLeft,
+            finalY: draggableObject.offsetTop
+        });
+    }
+    
+    isDragging = false;
+    draggableObject.classList.remove('dragging');
+});
+
+// Submit data with more detailed tracking
+submitButton.addEventListener('click', () => {
+    const rect1 = draggableObject.getBoundingClientRect();
+    const rect2 = mainImage.getBoundingClientRect();
+
+    const isInside = (
+        rect1.top >= rect2.top &&
+        rect1.left >= rect2.left &&
+        rect1.bottom <= rect2.bottom &&
+        rect1.right <= rect2.right &&
+        rotation === 0
+    );
+
+    logActivity('submit', { 
+        success: isInside,
+        objectPosition: {
+            top: rect1.top,
+            left: rect1.left,
+            bottom: rect1.bottom,
+            right: rect1.right
+        },
+        targetPosition: {
+            top: rect2.top,
+            left: rect2.left,
+            bottom: rect2.bottom,
+            right: rect2.right
+        }
+    });
+
+    if (isInside) {
+        popup.style.display = 'block';
+        setTimeout(() => {
+            popup.style.display = 'none';
+        }, 2000); // Hide popup after 2 seconds
+    }
+
+    fetch('/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            activityLog, 
+            success: isInside,
+            sessionDuration: Date.now() - sessionStartTime 
+        })
+    }).then(response => response.json())
+      .then(data => {
+          console.log(data.message);
+          alert(data.message);
+          window.location.href = '/main-website'; // Redirect to main website
+      });
+});
+
+// Initialize the object's position when the page loads
+window.addEventListener('load', initializeObjectPosition);
+    </script>
+</body>
+</html>

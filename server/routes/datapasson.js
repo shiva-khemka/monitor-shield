@@ -1,10 +1,10 @@
-const express = require('express');
-const router = express.Router();
-const MLService = require('../services/mlService');
-const { validateApiKey, rateLimiter } = require('../middleware');
-const UserProfile = require('../models/UserProfile');
-const MonitoringData = require('../models/MonitoringData');
+/*import express from 'express';
+import MLService from '../services/mlService';
+import { validateApiKey, rateLimiter } from '../middleware';
+import { User } from '../models/userSchema'; // Assuming the User model is being used here
+import { MonitoringData } from '../models/database'; // Assuming the MonitoringData model is used here
 
+const router = express.Router();
 const mlService = new MLService();
 
 router.post('/collect', 
@@ -62,3 +62,4 @@ router.post('/collect',
 });
 
 module.exports = router;
+*/

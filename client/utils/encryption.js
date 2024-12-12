@@ -1,3 +1,4 @@
+//.client/utils/encryption.js
 const crypto = require('crypto');
 
 class Encryption {

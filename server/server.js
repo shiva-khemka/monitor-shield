@@ -1,38 +1,38 @@
 // server.js
-const express = require('express');
-const cors = require('cors');
-const mongoose = require('mongoose');
-const cookieParser = require('cookie-parser');
-const { verifyRequest } = require('./middleware');
-require('dotenv').config();
-const {User} = require('./models/userSchema');
-const {MonitoringDataSchema} = require('./models/database');
+import express from 'express';
+import cors from 'cors';
+import mongoose from 'mongoose';
+import cookieParser from 'cookie-parser';
+import dotenv from 'dotenv';
+//import { verifyRequest } from './middleware.js';
+import monitorRoutes from './routes/monitorroutes.js';
+
+dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port =  5001;
 
 // Middleware
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS.split(','), // Allow requests only from specified origins
+    origin: process.env.ALLOWED_ORIGINS?.split(','), // Allow requests only from specified origins
     credentials: true // Allow sending cookies in cross-origin requests
 }));
+
 app.use(express.json()); // Parses incoming JSON request bodies
 app.use(cookieParser()); // Parses cookies from incoming requests
 
-app.use(verifyRequest());
+// Apply verifyRequest middleware to specific routes that need it
+// Instead of app.use(verifyRequest())
+app.use('/collect', monitorRoutes);
+
 // MongoDB connection
-mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-});
+mongoose.connect('mongodb+srv://shivakhemka:WtChg00eMArlAA25@cluster0.dz71b.mongodb.net/?retryWrites=true&w=majority')
+  .then(() => console.log('Database connected.'))
+  .catch(err => console.error('Connection error:', err));
 
-const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'MongoDB connection error:'));
-db.once('open', () => console.log('Connected to MongoDB'));
-
-// Routes
-app.use('/api', require('./routes/monitorroutes'));
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
 });
+
+export default app;

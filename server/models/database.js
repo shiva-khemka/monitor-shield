@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
-export const MonitoringDataSchema = new mongoose.Schema({
+const MonitoringDataSchema = new mongoose.Schema({
   timestamp: { type: Date, required: true },
   fingerprint: String,
   session_id: { type: String, required: true },
@@ -78,4 +78,6 @@ export const MonitoringDataSchema = new mongoose.Schema({
   features: mongoose.Schema.Types.Mixed
 });
 
-//module.exports = mongoose.model('MonitoringData', MonitoringDataSchema);
+// Export the model using default export
+const MonitoringData = mongoose.model('MonitoringData', MonitoringDataSchema);
+export default MonitoringData;
